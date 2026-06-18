@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>森林公安排班管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+:root{--primary:#1a73e8;--primary-dark:#1557b0;--primary-light:#e8f0fe;--danger:#ea4335;--success:#34a853;--warning:#fbbc04;--bg:#f5f7fa;--card:#fff;--text:#202124;--text-secondary:#5f6368;--border:#dadce0;--shadow:0 1px 3px rgba(0,0,0,0.12),0 1px 2px rgba(0,0,0,0.08);--shadow-lg:0 4px 12px rgba(0,0,0,0.15);--radius:8px;--sidebar-w:220px}
+body{background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+
+/* Layout */
+#app{display:flex;height:100vh}
+#sidebar{width:var(--sidebar-w);background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-header{padding:18px 16px;border-bottom:1px solid var(--border)}
+.sidebar-header h1{font-size:17px;color:var(--primary)}
+.sidebar-header small{font-size:12px;color:var(--text-secondary)}
+.sidebar-nav{flex:1;overflow-y:auto;padding:8px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;color:var(--text-secondary);font-size:14px;transition:all 0.15s;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--primary-light);color:var(--primary)}
+.nav-item.active{background:var(--primary-light);color:var(--primary);font-weight:600;border-right:3px solid var(--primary)}
+.nav-icon{font-size:18px;width:24px;text-align:center}
+
+/* Main Content */
+#content{flex:1;overflow-y:auto;padding:24px;min-width:0}
+.page{display:none}.page.active{display:block}
+.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.page-header h2{font-size:22px;color:var(--text)}
+
+/* Cards */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+.card-title{font-size:16px;font-weight:600;margin-bottom:12px;color:var(--text)}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;text-align:center}
+.stat-card .num{font-size:28px;font-weight:700;color:var(--primary)}
+.stat-card .label{font-size:13px;color:var(--text-secondary);margin-top:4px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;border:none;font-size:14px;cursor:pointer;transition:all 0.15s;font-weight:500}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#d93025}
+.btn-success{background:var(--success);color:#fff}.btn-success:hover{background:#2d9249}
+.btn-outline{background:transparent;color:var(--primary);border:1px solid var(--primary)}.btn-outline:hover{background:var(--primary-light)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Tables */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
+th{background:var(--bg);font-weight:600;color:var(--text-secondary);font-size:13px;position:sticky;top:0}
+tr:hover{background:#f8f9fa}
+
+/* Forms */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:4px}
+.form-group input,.form-group select{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;outline:none;transition:border 0.15s}
+.form-group input:focus,.form-group select:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(26,115,232,0.15)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.form-row{grid-template-columns:1fr}}
+
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:1000;display:none;justify-content:center;align-items:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:12px;box-shadow:var(--shadow-lg);width:90%;max-width:520px;max-height:80vh;overflow-y:auto;padding:24px}
+.modal h3{font-size:18px;margin-bottom:16px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
+
+/* Schedule Table specific */
+.schedule-wrap{overflow-x:auto;margin-top:12px}
+.schedule-wrap table{min-width:700px;font-size:13px}
+.schedule-wrap th{background:var(--primary);color:#fff;padding:8px;text-align:center;font-size:13px}
+.schedule-wrap td{padding:8px;text-align:center;vertical-align:middle;min-width:90px;line-height:1.5}
+.schedule-wrap .week-label{font-weight:600;background:var(--bg)}
+.schedule-wrap .date-text{font-weight:700;color:var(--primary);font-size:13px}
+.schedule-wrap .name-text{font-size:13px}
+.schedule-wrap .phone-text{font-size:11px;color:var(--text-secondary)}
+.schedule-wrap td.weekend{background:#fff8e1}
+.schedule-wrap td.empty{background:#f5f5f5;color:#ccc}
+.schedule-wrap .day-cell{min-height:80px}
+.schedule-wrap .saturday,.schedule-wrap .sunday{background:#fff3e0}
+
+/* Toast */
+.toast{position:fixed;top:20px;right:20px;z-index:2000;padding:12px 20px;border-radius:8px;color:#fff;font-size:14px;box-shadow:var(--shadow-lg);transform:translateX(120%);transition:transform 0.3s;max-width:350px}
+.toast.show{transform:translateX(0)}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--danger)}
+.toast.info{background:var(--primary)}
+
+/* Responsive */
+@media(max-width:768px){
+  #sidebar{width:56px}
+  .sidebar-header h1,.sidebar-header small,.nav-item span{display:none}
+  .nav-item{justify-content:center;padding:12px}
+  .nav-icon{font-size:22px;width:auto}
+  #content{padding:16px}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Tags */
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.tag-blue{background:#e8f0fe;color:var(--primary)}
+.tag-green{background:#e6f4ea;color:var(--success)}
+.tag-red{background:#fce8e6;color:var(--danger)}
+
+/* Quick Actions */
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.quick-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;text-align:center;cursor:pointer;transition:all 0.2s;border:2px solid transparent}
+.quick-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--primary)}
+.quick-card .icon{font-size:32px;margin-bottom:8px}
+.quick-card .name{font-size:14px;font-weight:500}
+
+/* History list */
+.history-item{padding:14px 16px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;cursor:pointer;transition:all 0.15s}
+.history-item:hover{background:var(--primary-light);border-color:var(--primary)}
+.history-item .info{flex:1}
+.history-item .title{font-weight:600;font-size:15px}
+.history-item .meta{font-size:12px;color:var(--text-secondary);margin-top:2px}
+
+/* Checkbox list for exclusion */
+.checkbox-list{max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px}
+.checkbox-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;cursor:pointer}
+.checkbox-item:hover{background:var(--bg)}
+.checkbox-item input[type="checkbox"]{width:16px;height:16px;accent-color:var(--primary)}
+
+/* Empty state */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-secondary)}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:14px}
+
+/* File input */
+.file-input-wrap{position:relative;display:inline-block}
+.file-input-wrap input[type="file"]{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <h1>🌲 森林排班</h1>
+      <small>排班管理系统</small>
+    </div>
+    <div class="sidebar-nav">
+      <button class="nav-item active" data-page="home"><span class="nav-icon">🏠</span><span>首页</span></button>
+      <button class="nav-item" data-page="personnel"><span class="nav-icon">👥</span><span>人员管理</span></button>
+      <button class="nav-item" data-page="schedule"><span class="nav-icon">📅</span><span>排班生成</span></button>
+      <button class="nav-item" data-page="history"><span class="nav-icon">📚</span><span>排班历史</span></button>
+      <button class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span><span>设置</span></button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main id="content">
+
+    <!-- ===== Page: Home ===== -->
+    <section id="page-home" class="page active">
+      <div class="page-header"><h2>🏠 首页概览</h2></div>
+      <div class="stats-row" id="homeStats"></div>
+      <div class="card">
+        <div class="card-title">⚡ 快捷操作</div>
+        <div class="quick-grid">
+          <div class="quick-card" onclick="navigate('personnel')"><div class="icon">👥</div><div class="name">人员管理</div></div>
+          <div class="quick-card" onclick="navigate('schedule')"><div class="icon">📅</div><div class="name">生成排班</div></div>
+          <div class="quick-card" onclick="navigate('history')"><div class="icon">📚</div><div class="name">排班历史</div></div>
+          <div class="quick-card" onclick="exportMarkdownLatest()"><div class="icon">📤</div><div class="name">导出排班</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 最近排班</div>
+        <div id="recentSchedule"></div>
+      </div>
+    </section>
+
+    <!-- ===== Page: Personnel ===== -->
+    <section id="page-personnel" class="page">
+      <div class="page-header">
+        <h2>👥 人员管理</h2>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="showPersonModal()">➕ 添加人员</button>
+          <button class="btn btn-outline" onclick="importExcel()">📂 导入Excel</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <input type="text" id="personSearch" placeholder="🔍 搜索姓名/部门..." style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px" oninput="renderPersonnel()">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="width:50px">序号</th><th>姓名</th><th>职务</th><th>部门</th><th>手机号</th><th style="width:120px">操作</th></tr></thead>
+            <tbody id="personnelBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="personnelEmpty" style="display:none">
+          <div class="icon">👤</div><p>暂无人员数据，点击"添加人员"或"导入Excel"开始</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Page: Schedule ===== -->
+    <section id="page-schedule" class="page">
+      <div class="page-header"><h2>📅 排班生成</h2></div>
+      <div class="card">
+        <div class="form-row">
+          <div class="form-group">
+            <label>年份</label>
+            <select id="schedYear"></select>
+          </div>
+          <div class="form-group">
+            <label>月份</label>
+            <select id="schedMonth"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>单位名称</label>
+          <input type="text" id="schedUnit" placeholder="如：森林公安">
+        </div>
+        <div class="form-group">
+          <label>排除人员（勾选不参与排班的人员）</label>
+          <div id="excludeList" class="checkbox-list"></div>
+        </div>
+        <button class="btn btn-primary" onclick="generateSchedule()" id="genBtn">🔄 生成排班表</button>
+      </div>
+      <div id="scheduleResult" style="display:none">
+        <div class="card">
+          <div class="page-header">
+            <h2 id="resultTitle" class="card-title"></h2>
+            <div class="btn-group">
+              <button class="btn btn-success" onclick="saveSchedule()">💾 保存排班</button>
+              <button class="btn btn-outline" onclick="exportMarkdown()">📤 导出Markdown</button>
+              <button class="btn btn-outline" onclick="window.print()">🖨️ 打印</button>
+            </div>
+          </div>
+          <div class="schedule-wrap" id="scheduleTableWrap"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Page: History ===== -->
+    <section id="page-history" class="page">
+      <div class="page-header">
+        <h2>📚 排班历史</h2>
+        <button class="btn btn-danger" onclick="clearAllHistory()">🗑️ 清空历史</button>
+      </div>
+      <div id="historyList"></div>
+      <div class="empty-state" id="historyEmpty" style="display:none">
+        <div class="icon">📭</div><p>暂无排班历史记录</p>
+      </div>
+    </section>
+
+    <!-- ===== Page: Settings ===== -->
+    <section id="page-settings" class="page">
+      <div class="page-header"><h2>⚙️ 设置</h2></div>
+      <div class="card">
+        <div class="form-group">
+          <label>单位名称（默认）</label>
+          <input type="text" id="settingsUnit" placeholder="如：森林公安" onchange="saveSettings()">
+        </div>
+        <div class="form-group">
+          <label>数据管理</label>
+          <div class="btn-group">
+            <button class="btn btn-outline" onclick="exportData()">📤 导出所有数据</button>
+            <button class="btn btn-outline" onclick="document.getElementById('importDataInput').click()">📂 导入数据</button>
+            <input type="file" id="importDataInput" accept=".json" style="display:none" onchange="importData(event)">
+            <button class="btn btn-danger" onclick="resetAllData()">⚠️ 重置所有数据</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">标题</h3>
+    <div id="modalBody"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== DATA LAYER ====================
+const DB_KEY = 'forestScheduleDB';
+
+function getDB() {
+  try {
+    return JSON.parse(localStorage.getItem(DB_KEY)) || { persons: [], schedules: [], settings: { unitName: '森林公安' } };
+  } catch(e) { return { persons: [], schedules: [], settings: { unitName: '森林公安' } }; }
+}
+
+function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+
+// ==================== TOAST ====================
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type;
+  setTimeout(() => t.classList.add('show'), 10);
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ==================== NAVIGATION ====================
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+  if (page === 'home') renderHome();
+  else if (page === 'personnel') renderPersonnel();
+  else if (page === 'history') renderHistory();
+}
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => navigate(item.dataset.page));
+});
+
+// ==================== HOME ====================
+function renderHome() {
+  const db = getDB();
+  const pCount = db.persons.length;
+  const sCount = db.schedules.length;
+  const lastSched = db.schedules.length > 0 ? db.schedules[db.schedules.length - 1] : null;
+
+  document.getElementById('homeStats').innerHTML = `
+    <div class="stat-card"><div class="num">${pCount}</div><div class="label">👥 人员总数</div></div>
+    <div class="stat-card"><div class="num">${sCount}</div><div class="label">📅 排班记录</div></div>
+    <div class="stat-card"><div class="num">${db.settings.unitName || '森林公安'}</div><div class="label">🏢 单位名称</div></div>
+  `;
+
+  const recentEl = document.getElementById('recentSchedule');
+  if (lastSched) {
+    recentEl.innerHTML = `<div class="history-item" onclick="viewHistory('${lastSched.id}')">
+      <div class="info"><div class="title">${lastSched.title}</div>
+      <div class="meta">📅 ${lastSched.year}年${lastSched.month}月 · 👥 ${lastSched.personnelList.length}人参与 · 生成于 ${new Date(lastSched.createdAt).toLocaleDateString()}</div></div>
+      <span class="tag tag-blue">最新</span>
+    </div>`;
+  } else {
+    recentEl.innerHTML = '<div class="empty-state"><p>暂无排班记录，去"排班生成"试试吧</p></div>';
+  }
+}
+
+// ==================== PERSONNEL ====================
+function renderPersonnel() {
+  const db = getDB();
+  const keyword = (document.getElementById('personSearch').value || '').trim().toLowerCase();
+  let list = db.persons;
+  if (keyword) list = list.filter(p => p.name.includes(keyword) || p.department.includes(keyword) || p.title.includes(keyword));
+  list.sort((a,b) => (a.serialNumber||999) - (b.serialNumber||999));
+
+  const tbody = document.getElementById('personnelBody');
+  const empty = document.getElementById('personnelEmpty');
+
+  if (list.length === 0) {
+    tbody.innerHTML = ''; empty.style.display = 'block'; return;
+  }
+  empty.style.display = 'none';
+  tbody.innerHTML = list.map(p => `<tr>
+    <td>${p.serialNumber || '-'}</td>
+    <td><strong>${p.name}</strong></td>
+    <td>${p.title || '-'}</td>
+    <td>${p.department || '-'}</td>
+    <td>${p.phone || '-'}</td>
+    <td>
+      <button class="btn btn-sm btn-outline" onclick="editPerson('${p.id}')">✏️</button>
+      <button class="btn btn-sm btn-danger" onclick="deletePerson('${p.id}')">🗑️</button>
+    </td>
+  </tr>`).join('');
+}
+
+function showPersonModal(person) {
+  const isEdit = !!person;
+  document.getElementById('modalTitle').textContent = isEdit ? '✏️ 编辑人员' : '➕ 添加人员';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-row">
+      <div class="form-group"><label>姓名 *</label><input type="text" id="fName" value="${isEdit ? person.name : ''}" placeholder="请输入姓名"></div>
+      <div class="form-group"><label>序号</label><input type="number" id="fSerial" value="${isEdit ? person.serialNumber : ''}" placeholder="排序序号"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>职务</label><input type="text" id="fTitle" value="${isEdit ? person.title : ''}" placeholder="如：副大队长"></div>
+      <div class="form-group"><label>部门</label><input type="text" id="fDept" value="${isEdit ? person.department : ''}" placeholder="如：刑侦队"></div>
+    </div>
+    <div class="form-group"><label>手机号</label><input type="text" id="fPhone" value="${isEdit ? person.phone : ''}" placeholder="11位手机号"></div>
+  `;
+  document.getElementById('modalActions').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">取消</button>
+    <button class="btn btn-primary" onclick="${isEdit ? `savePersonEdit('${person.id}')` : 'savePersonNew()'}">${isEdit ? '保存修改' : '确认添加'}</button>
+  `;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function savePersonNew() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { showToast('请输入姓名', 'error'); return; }
+  const db = getDB();
+  db.persons.push({
+    id: genId(), name, serialNumber: parseInt(document.getElementById('fSerial').value) || db.persons.length + 1,
+    title: document.getElementById('fTitle').value.trim(),
+    department: document.getElementById('fDept').value.trim(),
+    phone: document.getElementById('fPhone').value.trim(),
+    createdAt: new Date().toISOString()
+  });
+  saveDB(db); closeModal(); renderPersonnel(); showToast('✅ 添加成功！');
+}
+
+function savePersonEdit(id) {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { showToast('请输入姓名', 'error'); return; }
+  const db = getDB();
+  const idx = db.persons.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  db.persons[idx] = { ...db.persons[idx], name, serialNumber: parseInt(document.getElementById('fSerial').value) || 0,
+    title: document.getElementById('fTitle').value.trim(),
+    department: document.getElementById('fDept').value.trim(),
+    phone: document.getElementById('fPhone').value.trim() };
+  saveDB(db); closeModal(); renderPersonnel(); showToast('✅ 修改成功！');
+}
+
+function editPerson(id) {
+  const db = getDB(); const p = db.persons.find(x => x.id === id);
+  if (p) showPersonModal(p);
+}
+
+function deletePerson(id) {
+  if (!confirm('确定要删除该人员吗？')) return;
+  const db = getDB(); db.persons = db.persons.filter(p => p.id !== id);
+  saveDB(db); renderPersonnel(); showToast('🗑️ 已删除', 'info');
+}
+
+// Import Excel (using SheetJS CDN)
+function importExcel() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.xlsx,.xls';
+  input.onchange = async function(e) {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const data = await file.arrayBuffer();
+      if (typeof XLSX === 'undefined') {
+        showToast('⏳ 正在加载Excel解析库...', 'info');
+        await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+      }
+      const workbook = XLSX.read(data, { type: 'array' });
+      
+      // Read Sheet1 (personnel roster)
+      const sheet1 = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet1, { header: 1, defval: '' });
+      
+      if (rows.length < 2) { showToast('Excel文件内容为空', 'error'); return; }
+      
+      // Try to find headers
+      const headerRow = rows[0];
+      const colMap = {};
+      headerRow.forEach((h, i) => {
+        const hstr = String(h).trim();
+        if (hstr.includes('姓名') || hstr === '姓名') colMap.name = i;
+        if (hstr.includes('序号') || hstr === '序号' || hstr.includes('编号')) colMap.serial = i;
+        if (hstr.includes('职务') || hstr === '职务') colMap.title = i;
+        if (hstr.includes('部门') || hstr === '部门' || hstr.includes('单位')) colMap.dept = i;
+        if (hstr.includes('手机') || hstr.includes('电话') || hstr === '联系方式') colMap.phone = i;
+      });
+
+      // Also check Sheet2 for phone numbers
+      let phoneMap = {};
+      if (workbook.SheetNames.length > 1) {
+        const sheet2 = workbook.Sheets[workbook.SheetNames[1]];
+        const rows2 = XLSX.utils.sheet_to_json(sheet2, { header: 1, defval: '' });
+        const h2 = rows2[0];
+        let nameIdx2 = -1, phoneIdx2 = -1;
+        h2.forEach((h, i) => {
+          const hs = String(h).trim();
+          if (hs.includes('姓名')) nameIdx2 = i;
+          if (hs.includes('手机') || hs.includes('电话')) phoneIdx2 = i;
+        });
+        if (nameIdx2 >= 0 && phoneIdx2 >= 0) {
+          for (let r = 1; r < rows2.length; r++) {
+            const row = rows2[r];
+            const n = String(row[nameIdx2] || '').trim();
+            const p = String(row[phoneIdx2] || '').trim();
+            if (n) phoneMap[n] = p;
+          }
+        }
+      }
+
+      const db = getDB();
+      let added = 0;
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const name = colMap.name !== undefined ? String(row[colMap.name] || '').trim() : '';
+        if (!name) continue;
+        
+        const phone = phoneMap[name] || (colMap.phone !== undefined ? String(row[colMap.phone] || '').trim() : '');
+        
+        // Check duplicate by name
+        if (db.persons.some(p => p.name === name)) continue;
+        
+        db.persons.push({
+          id: genId(), name,
+          serialNumber: colMap.serial !== undefined ? parseInt(row[colMap.serial]) || (db.persons.length + 1) : (db.persons.length + 1),
+          title: colMap.title !== undefined ? String(row[colMap.title] || '').trim() : '',
+          department: colMap.dept !== undefined ? String(row[colMap.dept] || '').trim() : '',
+          phone: phone,
+          createdAt: new Date().toISOString()
+        });
+        added++;
+      }
+      saveDB(db); renderPersonnel();
+      showToast(`✅ 成功导入 ${added} 名人员！`);
+    } catch(err) {
+      showToast('导入失败：' + err.message, 'error');
+    }
+  };
+  input.click();
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script'); s.src = src;
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// ==================== SCHEDULE GENERATION ====================
+function initScheduleForm() {
+  const year = new Date().getFullYear();
+  const month = new Date().getMonth() + 1;
+  const yearSel = document.getElementById('schedYear');
+  const monthSel = document.getElementById('schedMonth');
+  yearSel.innerHTML = '';
+  for (let y = year - 2; y <= year + 2; y++) {
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y + '年';
+    if (y === year) opt.selected = true;
+    yearSel.appendChild(opt);
+  }
+  monthSel.innerHTML = '';
+  for (let m = 1; m <= 12; m++) {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m + '月';
+    if (m === month) opt.selected = true;
+    monthSel.appendChild(opt);
+  }
+  const db = getDB();
+  document.getElementById('schedUnit').value = db.settings.unitName || '森林公安';
+  renderExcludeList();
+}
+
+function renderExcludeList() {
+  const db = getDB();
+  const container = document.getElementById('excludeList');
+  if (db.persons.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-secondary);padding:8px;font-size:13px">暂无人员，请先在"人员管理"中添加</div>';
+    return;
+  }
+  db.persons.sort((a,b) => (a.serialNumber||999) - (b.serialNumber||999));
+  container.innerHTML = db.persons.map(p => `
+    <label class="checkbox-item">
+      <input type="checkbox" value="${p.id}">
+      <span>${p.name} ${p.title ? '('+p.title+')' : ''}</span>
+    </label>
+  `).join('');
+}
+
+function generateSchedule() {
+  const db = getDB();
+  if (db.persons.length === 0) { showToast('⚠️ 请先添加人员', 'error'); return; }
+
+  const year = parseInt(document.getElementById('schedYear').value);
+  const month = parseInt(document.getElementById('schedMonth').value);
+  const unit = document.getElementById('schedUnit').value.trim() || '森林公安';
+
+  // Get excluded person IDs
+  const checkedBoxes = document.querySelectorAll('#excludeList input[type="checkbox"]:checked');
+  const excludedIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+  // Filter personnel list
+  let available = db.persons.filter(p => !excludedIds.includes(p.id));
+  available.sort((a, b) => (a.serialNumber || 999) - (b.serialNumber || 999));
+
+  if (available.length < 2) { showToast('⚠️ 至少需要2人才能排班', 'error'); return; }
+
+  // Calculate month days
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const totalDays = lastDay.getDate();
+
+  // Generate daily rotation schedule
+  const N = available.length;
+  const days = [];
+  for (let d = 1; d <= totalDays; d++) {
+    const t = d - 1;
+    const idx1 = (t * 1) % N;
+    const idx2 = (t * 1 + 1) % N;
+    days.push({
+      date: new Date(year, month - 1, d),
+      persons: [available[idx1], available[idx2]]
+    });
+  }
+
+  // Organize into weeks (Mon-Sun)
+  const weeks = [];
+  let currentWeek = [];
+  // Find the first Monday of the month (or before)
+  let cursor = new Date(firstDay);
+  // Go back to Monday if needed
+  while (cursor.getDay() !== 1) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  // Build weeks covering the full month
+  const weekStart = new Date(cursor);
+  while (true) {
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      week.push(d);
+    }
+    weeks.push(week);
+    weekStart.setDate(weekStart.getDate() + 7);
+    if (weekStart > lastDay) break;
+    // Safety: limit weeks
+    if (weeks.length > 6) break;
+  }
+
+  // Build schedule data
+  const scheduleDays = {};
+  days.forEach(d => {
+    const key = d.date.toISOString().split('T')[0];
+    scheduleDays[key] = d.persons;
+  });
+
+  // Render
+  const title = `${unit}${month}月排班表`;
+  document.getElementById('resultTitle').textContent = '📊 ' + title;
+  
+  let html = '<table><thead><tr><th style="min-width:60px">周次</th>';
+  const weekDays = ['周一','周二','周三','周四','周五','周六','周日'];
+  weekDays.forEach(wd => { html += `<th>${wd}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  let weekNum = 0;
+  weeks.forEach(week => {
+    const firstDateOfWeek = week[0];
+    // Check if this week has any days in our month
+    const hasDaysInMonth = week.some(d => d.getFullYear() === year && d.getMonth() === month - 1);
+    if (!hasDaysInMonth) return;
+
+    weekNum++;
+    html += `<tr><td class="week-label">第${weekNum}周</td>`;
+    week.forEach(d => {
+      const isCurrentMonth = d.getFullYear() === year && d.getMonth() === month - 1;
+      const dayOfWeek = d.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const key = d.toISOString().split('T')[0];
+      const persons = scheduleDays[key];
+
+      if (!isCurrentMonth || !persons) {
+        html += `<td class="empty">-</td>`;
+      } else {
+        const dayNum = d.getDate();
+        html += `<td class="day-cell ${isWeekend ? 'weekend' : ''}">
+          <div class="date-text">${month}月${dayNum}日</div>
+          <div class="name-text">${persons[0].name}</div>
+          <div class="phone-text">${persons[0].phone || '无'}</div>
+          <div class="name-text">${persons[1].name}</div>
+          <div class="phone-text">${persons[1].phone || '无'}</div>
+        </td>`;
+      }
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('scheduleTableWrap').innerHTML = html;
+  document.getElementById('scheduleResult').style.display = 'block';
+
+  // Store current schedule for saving
+  window._currentSchedule = { year, month, unit, title, excludedIds, personnelList: available, weeks: weeks.map((w, wi) => ({
+    weekNumber: wi + 1,
+    days: w.map(d => {
+      const key = d.toISOString().split('T')[0];
+      const ps = scheduleDays[key] || [];
+      return { date: key, persons: ps.map(p => ({ id: p.id, name: p.name, phone: p.phone })) };
+    })
+  }))};
+
+  showToast(`✅ ${title} 生成成功！`);
+}
+
+// ==================== SAVE / HISTORY ====================
+function saveSchedule() {
+  if (!window._currentSchedule) { showToast('请先生成排班表', 'error'); return; }
+  const db = getDB();
+  const s = window._currentSchedule;
+  // Check duplicate
+  const dup = db.schedules.some(s2 => s2.year === s.year && s2.month === s.month);
+  if (dup && !confirm(`⚠️ ${s.year}年${s.month}月已有排班记录，是否覆盖？`)) return;
+  
+  if (dup) db.schedules = db.schedules.filter(s2 => !(s2.year === s.year && s2.month === s.month));
+  
+  db.schedules.push({
+    id: genId(),
+    year: s.year, month: s.month,
+    title: s.title, unit: s.unit,
+    excludedIds: s.excludedIds,
+    personnelList: s.personnelList,
+    weeks: s.weeks,
+    createdAt: new Date().toISOString()
+  });
+  saveDB(db);
+  showToast('💾 排班已保存！');
+}
+
+function renderHistory() {
+  const db = getDB();
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+  
+  if (db.schedules.length === 0) {
+    list.innerHTML = ''; empty.style.display = 'block'; return;
+  }
+  empty.style.display = 'none';
+  
+  const sorted = [...db.schedules].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  list.innerHTML = sorted.map(s => {
+    const date = new Date(s.createdAt);
+    return `<div class="history-item">
+      <div class="info" onclick="viewHistory('${s.id}')">
+        <div class="title">${s.title}</div>
+        <div class="meta">👥 ${s.personnelList.length}人 · 生成于 ${date.toLocaleDateString()} ${date.toLocaleTimeString().substr(0,5)}</div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();viewHistory('${s.id}')">👁️</button>
+        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();deleteHistory('${s.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function viewHistory(id) {
+  const db = getDB();
+  const s = db.schedules.find(x => x.id === id);
+  if (!s) { showToast('记录不存在', 'error'); return; }
+
+  // Navigate to schedule page and show
+  navigate('schedule');
+  document.getElementById('schedYear').value = s.year;
+  document.getElementById('schedMonth').value = s.month;
+  document.getElementById('schedUnit').value = s.unit || db.settings.unitName;
+  renderExcludeList();
+  // Check excluded
+  document.querySelectorAll('#excludeList input[type="checkbox"]').forEach(cb => {
+    if (s.excludedIds && s.excludedIds.includes(cb.value)) cb.checked = true;
+  });
+
+  // Rebuild display
+  const title = s.title;
+  document.getElementById('resultTitle').textContent = '📊 ' + title;
+  
+  let html = '<table><thead><tr><th style="min-width:60px">周次</th>';
+  const weekDays = ['周一','周二','周三','周四','周五','周六','周日'];
+  weekDays.forEach(wd => { html += `<th>${wd}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  s.weeks.forEach(week => {
+    html += `<tr><td class="week-label">第${week.weekNumber}周</td>`;
+    week.days.forEach(d => {
+      const dateObj = new Date(d.date + 'T00:00:00');
+      const dayOfWeek = dateObj.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const month = dateObj.getMonth() + 1;
+      const dayNum = dateObj.getDate();
+
+      if (d.persons.length === 0) {
+        html += `<td class="empty">-</td>`;
+      } else {
+        html += `<td class="day-cell ${isWeekend ? 'weekend' : ''}">
+          <div class="date-text">${month}月${dayNum}日</div>
+          <div class="name-text">${d.persons[0].name}</div>
+          <div class="phone-text">${d.persons[0].phone || '无'}</div>
+          <div class="name-text">${d.persons[1].name}</div>
+          <div class="phone-text">${d.persons[1].phone || '无'}</div>
+        </td>`;
+      }
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('scheduleTableWrap').innerHTML = html;
+  document.getElementById('scheduleResult').style.display = 'block';
+
+  window._currentSchedule = s;
+  showToast('👁️ 已加载历史排班', 'info');
+}
+
+function deleteHistory(id) {
+  if (!confirm('确定要删除该排班记录吗？')) return;
+  const db = getDB(); db.schedules = db.schedules.filter(s => s.id !== id);
+  saveDB(db); renderHistory(); showToast('🗑️ 已删除', 'info');
+}
+
+function clearAllHistory() {
+  const db = getDB();
+  if (db.schedules.length === 0) { showToast('暂无历史记录', 'info'); return; }
+  if (!confirm(`确定要清空全部 ${db.schedules.length} 条排班历史记录吗？此操作不可撤销！`)) return;
+  db.schedules = []; saveDB(db); renderHistory(); showToast('🗑️ 已清空所有历史记录', 'info');
+}
+
+// ==================== EXPORT ====================
+function exportMarkdown() {
+  if (!window._currentSchedule) { showToast('请先生成或查看一个排班表', 'error'); return; }
+  const s = window._currentSchedule;
+  let md = `# ${s.title}\n\n`;
+  md += `| 周次 | 周一 | 周二 | 周三 | 周四 | 周五 | 周六 | 周日 |\n`;
+  md += `| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |\n`;
+
+  s.weeks.forEach(week => {
+    md += `| 第${week.weekNumber}周`;
+    week.days.forEach(d => {
+      if (d.persons.length === 0) {
+        md += ` | -`;
+      } else {
+        const dateObj = new Date(d.date + 'T00:00:00');
+        const m = dateObj.getMonth() + 1;
+        const day = dateObj.getDate();
+        md += ` | ${m}月${day}日<br>${d.persons[0].name}<br>${d.persons[0].phone || ''}<br>${d.persons[1].name}<br>${d.persons[1].phone || ''}`;
+      }
+    });
+    md += ` |\n`;
+  });
+
+  // Download
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${s.title}.md`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('📤 Markdown 已下载！');
+}
+
+function exportMarkdownLatest() {
+  const db = getDB();
+  if (db.schedules.length === 0) { showToast('暂无排班记录可导出', 'error'); return; }
+  const latest = db.schedules[db.schedules.length - 1];
+  window._currentSchedule = latest;
+  exportMarkdown();
+}
+
+// ==================== SETTINGS ====================
+function saveSettings() {
+  const db = getDB();
+  db.settings.unitName = document.getElementById('settingsUnit').value.trim() || '森林公安';
+  saveDB(db);
+  showToast('⚙️ 设置已保存', 'info');
+}
+
+function loadSettings() {
+  const db = getDB();
+  document.getElementById('settingsUnit').value = db.settings.unitName || '森林公安';
+}
+
+function exportData() {
+  const db = getDB();
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = '森林排班数据备份.json';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('📤 数据已导出');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.persons || !data.schedules) { showToast('数据格式无效', 'error'); return; }
+      if (!confirm(`将导入 ${data.persons.length} 名人员和 ${data.schedules.length} 条排班记录，是否覆盖当前数据？`)) return;
+      saveDB(data); renderPersonnel(); renderHistory(); renderHome();
+      showToast('✅ 数据导入成功！');
+    } catch(err) { showToast('导入失败：' + err.message, 'error'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function resetAllData() {
+  if (!confirm('⚠️ 确定要重置所有数据吗？此操作不可撤销！\n\n将清除所有人员信息和排班记录。')) return;
+  if (!confirm('二次确认：真的要全部清空吗？')) return;
+  saveDB({ persons: [], schedules: [], settings: { unitName: '森林公安' } });
+  renderPersonnel(); renderHistory(); renderHome(); loadSettings();
+  document.getElementById('scheduleResult').style.display = 'none';
+  showToast('✅ 已重置所有数据');
+}
+
+// ==================== MODAL ====================
+function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ==================== INIT ====================
+function init() {
+  initScheduleForm();
+  loadSettings();
+  renderHome();
+}
+
+init();
+</script>
+</body>
+</html>
