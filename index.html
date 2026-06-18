@@ -68,19 +68,52 @@ tr:hover{background:#f8f9fa}
 .modal h3{font-size:18px;margin-bottom:16px}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
 
-/* Schedule Table specific */
+/* Schedule Table & Card styles */
 .schedule-wrap{overflow-x:auto;margin-top:12px}
-.schedule-wrap table{min-width:700px;font-size:13px}
-.schedule-wrap th{background:var(--primary);color:#fff;padding:8px;text-align:center;font-size:13px}
-.schedule-wrap td{padding:8px;text-align:center;vertical-align:middle;min-width:90px;line-height:1.5}
-.schedule-wrap .week-label{font-weight:600;background:var(--bg)}
-.schedule-wrap .date-text{font-weight:700;color:var(--primary);font-size:13px}
-.schedule-wrap .name-text{font-size:13px}
-.schedule-wrap .phone-text{font-size:11px;color:var(--text-secondary)}
-.schedule-wrap td.weekend{background:#fff8e1}
-.schedule-wrap td.empty{background:#f5f5f5;color:#ccc}
-.schedule-wrap .day-cell{min-height:80px}
-.schedule-wrap .saturday,.schedule-wrap .sunday{background:#fff3e0}
+.schedule-wrap table{min-width:700px;font-size:13px;border-collapse:separate;border-spacing:0;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.schedule-wrap th{background:linear-gradient(135deg,#1a73e8,#1557b0);color:#fff;padding:10px 8px;text-align:center;font-size:13px;font-weight:600;letter-spacing:0.5px}
+.schedule-wrap td{padding:8px;text-align:center;vertical-align:middle;min-width:85px;line-height:1.5;border-bottom:1px solid #f0f0f0}
+.schedule-wrap .week-label{font-weight:700;background:var(--bg);color:var(--text);font-size:13px;border-right:2px solid #e0e0e0}
+.schedule-wrap .date-text{font-weight:700;color:#1a73e8;font-size:12px;margin-bottom:2px}
+.schedule-wrap .name-text{font-size:13px;font-weight:500;color:#202124;line-height:1.4}
+.schedule-wrap .phone-text{font-size:10px;color:#9e9e9e;line-height:1.2}
+.schedule-wrap td.weekend{background:linear-gradient(135deg,#fff8e1,#fff3cd)}
+.schedule-wrap td.empty{background:#fafafa;color:#ddd}
+.schedule-wrap .day-cell{min-height:72px;padding:6px 4px;transition:background 0.2s}
+.schedule-wrap tr:last-child td{border-bottom:none}
+.schedule-wrap tr:hover td{background:#f0f6ff}
+.schedule-wrap tr:hover td.weekend{background:linear-gradient(135deg,#fff3cd,#ffe69c)}
+
+/* Mobile Card Schedule */
+.schedule-cards{display:none}
+
+/* Desktop Table is default - shown on wider screens */
+@media(min-width:769px){
+  .schedule-wrap table{width:100%}
+}
+
+/* Mobile: Card layout */
+@media(max-width:768px){
+  .schedule-wrap{overflow-x:visible}
+  .schedule-wrap table{display:none}
+  .schedule-cards{display:block}
+  .week-card{background:var(--card);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:14px;overflow:hidden;border:1px solid #eee}
+  .week-card-header{background:linear-gradient(135deg,#1a73e8,#4a90d9);color:#fff;padding:10px 14px;font-weight:600;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+  .week-card-header .week-range{font-size:12px;opacity:0.9;font-weight:400}
+  .week-card-body{display:grid;grid-template-columns:repeat(7,1fr);gap:0}
+  .day-card{border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0;padding:6px 2px;text-align:center;min-height:64px;display:flex;flex-direction:column;justify-content:center;align-items:center}
+  .day-card:nth-child(7n){border-right:none}
+  .day-card.weekend-card{background:linear-gradient(135deg,#fff8e1,#fffdf5)}
+  .day-card.empty-card{background:#fafafa}
+  .day-card .day-label{font-size:10px;color:#9e9e9e;font-weight:500;margin-bottom:1px}
+  .day-card .day-date{font-size:11px;font-weight:700;color:#1a73e8;margin-bottom:2px}
+  .day-card .day-name{font-size:12px;font-weight:500;color:#202124;line-height:1.3}
+  .day-card .day-phone{font-size:9px;color:#bdbdbd;line-height:1.1}
+  .day-card .day-split{font-size:8px;color:#ddd;line-height:0.8}
+  .schedule-title-bar{text-align:center;margin-bottom:14px}
+  .schedule-title-bar .main-title{font-size:17px;font-weight:700;color:var(--text)}
+  .schedule-title-bar .sub-title{font-size:12px;color:var(--text-secondary);margin-top:2px}
+}
 
 /* Toast */
 .toast{position:fixed;top:20px;right:20px;z-index:2000;padding:12px 20px;border-radius:8px;color:#fff;font-size:14px;box-shadow:var(--shadow-lg);transform:translateX(120%);transition:transform 0.3s;max-width:350px}
@@ -380,27 +413,30 @@ function renderHome() {
     return;
   }
   
-  // 渲染排班表
+  // 渲染排班表（双格式：桌面表格 + 手机卡片）
   const title = `${db.settings.unitName || '零零森林公安'}${month}月排班表`;
-  let html = `<div style="text-align:center;margin-bottom:12px"><strong style="font-size:18px">${title}</strong>
+  const weekDayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+  const weekDayShort = ['一','二','三','四','五','六','日'];
+  
+  // -- 表格版（桌面） --
+  let tbl = `<div style="text-align:center;margin-bottom:12px"><strong style="font-size:18px">${title}</strong>
     <span style="font-size:12px;color:var(--text-secondary);margin-left:8px">（自动排除局长，${sched.availableCount}人轮值）</span></div>`;
-  html += '<table><thead><tr><th style="min-width:60px">周次</th>';
-  const weekDays = ['周一','周二','周三','周四','周五','周六','周日'];
-  weekDays.forEach(wd => { html += `<th>${wd}</th>`; });
-  html += '</tr></thead><tbody>';
+  tbl += '<table><thead><tr><th style="min-width:60px">周次</th>';
+  weekDayNames.forEach(wd => { tbl += `<th>${wd}</th>`; });
+  tbl += '</tr></thead><tbody>';
 
   sched.weeks.forEach(week => {
-    html += `<tr><td class="week-label">第${week.weekNumber}周</td>`;
+    tbl += `<tr><td class="week-label">第${week.weekNumber}周</td>`;
     week.days.forEach(d => {
       if (!d.persons || d.persons.length === 0) {
-        html += `<td class="empty">-</td>`;
+        tbl += `<td class="empty">-</td>`;
       } else {
         const dayOfWeek = new Date(d.date).getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const dateObj = new Date(d.date + 'T00:00:00');
         const m = dateObj.getMonth() + 1;
         const dayNum = dateObj.getDate();
-        html += `<td class="day-cell ${isWeekend ? 'weekend' : ''}">
+        tbl += `<td class="day-cell ${isWeekend ? 'weekend' : ''}">
           <div class="date-text">${m}月${dayNum}日</div>
           <div class="name-text">${d.persons[0].name}</div>
           <div class="phone-text">${d.persons[0].phone || ''}</div>
@@ -409,11 +445,58 @@ function renderHome() {
         </td>`;
       }
     });
-    html += '</tr>';
+    tbl += '</tr>';
   });
-  html += '</tbody></table>';
+  tbl += '</tbody></table>';
   
-  document.getElementById('homeScheduleTable').innerHTML = html;
+  // -- 卡片版（手机） --
+  let cards = `<div class="schedule-title-bar">
+    <div class="main-title">${title}</div>
+    <div class="sub-title">排除局长 · ${sched.availableCount}人轮值</div>
+  </div>`;
+  
+  const weekRanges = ['',''];
+  sched.weeks.forEach(week => {
+    // 计算周日期范围
+    const validDays = week.days.filter(d => d.persons && d.persons.length > 0);
+    const startD = validDays.length > 0 ? new Date(validDays[0].date + 'T00:00:00') : null;
+    const endD = validDays.length > 0 ? new Date(validDays[validDays.length-1].date + 'T00:00:00') : null;
+    let rangeStr = '';
+    if (startD && endD) rangeStr = `${startD.getMonth()+1}/${startD.getDate()}-${endD.getMonth()+1}/${endD.getDate()}`;
+    
+    cards += `<div class="week-card">
+      <div class="week-card-header">
+        <span>第${week.weekNumber}周</span>
+        <span class="week-range">${rangeStr}</span>
+      </div>
+      <div class="week-card-body">`;
+    
+    week.days.forEach(d => {
+      if (!d.persons || d.persons.length === 0) {
+        cards += `<div class="day-card empty-card"><div class="day-label">-</div></div>`;
+      } else {
+        const dayOfWeek = new Date(d.date).getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const dateObj = new Date(d.date + 'T00:00:00');
+        const m = dateObj.getMonth() + 1;
+        const dayNum = dateObj.getDate();
+        const dow = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Mon=0, Sun=6
+        cards += `<div class="day-card ${isWeekend ? 'weekend-card' : ''}">
+          <div class="day-label">${weekDayShort[dow]}</div>
+          <div class="day-date">${m}/${dayNum}</div>
+          <div class="day-name">${d.persons[0].name}</div>
+          <div class="day-phone">${d.persons[0].phone || ''}</div>
+          <div class="day-split">-</div>
+          <div class="day-name">${d.persons[1].name}</div>
+          <div class="day-phone">${d.persons[1].phone || ''}</div>
+        </div>`;
+      }
+    });
+    
+    cards += '</div></div>';
+  });
+  
+  document.getElementById('homeScheduleTable').innerHTML = tbl + `<div class="schedule-cards">${cards}</div>`;
   
   // 保存到当前排班以便导出
   window._currentSchedule = {
@@ -764,24 +847,27 @@ function generateSchedule() {
     scheduleDays[key] = d.persons;
   });
 
-  // Render
+  // Render (双格式：桌面表格 + 手机卡片)
   const title = `${unit}${month}月排班表`;
   document.getElementById('resultTitle').textContent = '📊 ' + title;
+  const weekDayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+  const weekDayShort = ['一','二','三','四','五','六','日'];
   
+  // -- 表格版 --
   let html = '<table><thead><tr><th style="min-width:60px">周次</th>';
-  const weekDays = ['周一','周二','周三','周四','周五','周六','周日'];
-  weekDays.forEach(wd => { html += `<th>${wd}</th>`; });
+  weekDayNames.forEach(wd => { html += `<th>${wd}</th>`; });
   html += '</tr></thead><tbody>';
 
   let weekNum = 0;
+  const weekData = []; // store week data for cards
   weeks.forEach(week => {
     const firstDateOfWeek = week[0];
-    // Check if this week has any days in our month
     const hasDaysInMonth = week.some(d => d.getFullYear() === year && d.getMonth() === month - 1);
     if (!hasDaysInMonth) return;
 
     weekNum++;
     html += `<tr><td class="week-label">第${weekNum}周</td>`;
+    const weekDaysData = [];
     week.forEach(d => {
       const isCurrentMonth = d.getFullYear() === year && d.getMonth() === month - 1;
       const dayOfWeek = d.getDay();
@@ -791,6 +877,7 @@ function generateSchedule() {
 
       if (!isCurrentMonth || !persons) {
         html += `<td class="empty">-</td>`;
+        weekDaysData.push({ persons: [] });
       } else {
         const dayNum = d.getDate();
         html += `<td class="day-cell ${isWeekend ? 'weekend' : ''}">
@@ -800,13 +887,47 @@ function generateSchedule() {
           <div class="name-text">${persons[1].name}</div>
           <div class="phone-text">${persons[1].phone || '无'}</div>
         </td>`;
+        weekDaysData.push({ date: key, persons: persons.map(p => ({name: p.name, phone: p.phone})), dayOfWeek, isWeekend, dayNum });
       }
     });
     html += '</tr>';
+    weekData.push({ weekNumber: weekNum, days: weekDaysData });
   });
 
   html += '</tbody></table>';
-  document.getElementById('scheduleTableWrap').innerHTML = html;
+
+  // -- 卡片版 --
+  let cardsHtml = '';
+  weekData.forEach(wk => {
+    const validDays = wk.days.filter(d => d.persons && d.persons.length > 0);
+    const startD = validDays.length > 0 ? new Date(validDays[0].date + 'T00:00:00') : null;
+    const endD = validDays.length > 0 ? new Date(validDays[validDays.length-1].date + 'T00:00:00') : null;
+    let rangeStr = '';
+    if (startD && endD) rangeStr = `${startD.getMonth()+1}/${startD.getDate()}-${endD.getMonth()+1}/${endD.getDate()}`;
+
+    cardsHtml += `<div class="week-card">
+      <div class="week-card-header"><span>第${wk.weekNumber}周</span><span class="week-range">${rangeStr}</span></div>
+      <div class="week-card-body">`;
+    wk.days.forEach(d => {
+      if (!d.persons || d.persons.length === 0) {
+        cardsHtml += `<div class="day-card empty-card"><div class="day-label">-</div></div>`;
+      } else {
+        const dow = d.dayOfWeek === 0 ? 6 : d.dayOfWeek - 1;
+        cardsHtml += `<div class="day-card ${d.isWeekend ? 'weekend-card' : ''}">
+          <div class="day-label">${weekDayShort[dow]}</div>
+          <div class="day-date">${month}/${d.dayNum}</div>
+          <div class="day-name">${d.persons[0].name}</div>
+          <div class="day-phone">${d.persons[0].phone || ''}</div>
+          <div class="day-split">-</div>
+          <div class="day-name">${d.persons[1].name}</div>
+          <div class="day-phone">${d.persons[1].phone || ''}</div>
+        </div>`;
+      }
+    });
+    cardsHtml += '</div></div>';
+  });
+
+  document.getElementById('scheduleTableWrap').innerHTML = html + `<div class="schedule-cards">${cardsHtml}</div>`;
   document.getElementById('scheduleResult').style.display = 'block';
 
   // Store current schedule for saving
@@ -888,13 +1009,15 @@ function viewHistory(id) {
     if (s.excludedIds && s.excludedIds.includes(cb.value)) cb.checked = true;
   });
 
-  // Rebuild display
+  // Rebuild display (双格式)
   const title = s.title;
   document.getElementById('resultTitle').textContent = '📊 ' + title;
+  const weekDayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+  const weekDayShort = ['一','二','三','四','五','六','日'];
   
+  // -- 表格版 --
   let html = '<table><thead><tr><th style="min-width:60px">周次</th>';
-  const weekDays = ['周一','周二','周三','周四','周五','周六','周日'];
-  weekDays.forEach(wd => { html += `<th>${wd}</th>`; });
+  weekDayNames.forEach(wd => { html += `<th>${wd}</th>`; });
   html += '</tr></thead><tbody>';
 
   s.weeks.forEach(week => {
@@ -920,9 +1043,45 @@ function viewHistory(id) {
     });
     html += '</tr>';
   });
-
   html += '</tbody></table>';
-  document.getElementById('scheduleTableWrap').innerHTML = html;
+
+  // -- 卡片版 --
+  let cardsHtml = '';
+  s.weeks.forEach(week => {
+    const validDays = week.days.filter(d => d.persons && d.persons.length > 0);
+    const startD = validDays.length > 0 ? new Date(validDays[0].date + 'T00:00:00') : null;
+    const endD = validDays.length > 0 ? new Date(validDays[validDays.length-1].date + 'T00:00:00') : null;
+    let rangeStr = '';
+    if (startD && endD) rangeStr = `${startD.getMonth()+1}/${startD.getDate()}-${endD.getMonth()+1}/${endD.getDate()}`;
+
+    cardsHtml += `<div class="week-card">
+      <div class="week-card-header"><span>第${week.weekNumber}周</span><span class="week-range">${rangeStr}</span></div>
+      <div class="week-card-body">`;
+    week.days.forEach(d => {
+      if (!d.persons || d.persons.length === 0) {
+        cardsHtml += `<div class="day-card empty-card"><div class="day-label">-</div></div>`;
+      } else {
+        const dateObj = new Date(d.date + 'T00:00:00');
+        const dayOfWeek = dateObj.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const m = dateObj.getMonth() + 1;
+        const dayNum = dateObj.getDate();
+        const dow = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        cardsHtml += `<div class="day-card ${isWeekend ? 'weekend-card' : ''}">
+          <div class="day-label">${weekDayShort[dow]}</div>
+          <div class="day-date">${m}/${dayNum}</div>
+          <div class="day-name">${d.persons[0].name}</div>
+          <div class="day-phone">${d.persons[0].phone || ''}</div>
+          <div class="day-split">-</div>
+          <div class="day-name">${d.persons[1].name}</div>
+          <div class="day-phone">${d.persons[1].phone || ''}</div>
+        </div>`;
+      }
+    });
+    cardsHtml += '</div></div>';
+  });
+
+  document.getElementById('scheduleTableWrap').innerHTML = html + `<div class="schedule-cards">${cardsHtml}</div>`;
   document.getElementById('scheduleResult').style.display = 'block';
 
   window._currentSchedule = s;
