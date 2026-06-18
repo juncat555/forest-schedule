@@ -13,8 +13,10 @@ body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;b
 #app{min-height:100vh;display:flex;flex-direction:column}
 #content{flex:1;padding:20px 16px 24px;max-width:580px;margin:0 auto;width:100%}
 .page{display:none}.page.active{display:block}
-.page-header{text-align:center;margin-bottom:18px;padding-top:4px}
+.page-header{text-align:center;margin-bottom:18px;padding-top:4px;position:relative}
 .page-header h2{font-size:21px;font-weight:700;color:#fff;letter-spacing:2px;text-shadow:0 0 20px rgba(74,143,224,0.3)}
+.settings-gear{position:absolute;top:2px;right:0;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;border-radius:8px;transition:all 0.2s;opacity:0.7;line-height:1}
+.settings-gear:hover{opacity:1;background:rgba(255,255,255,0.1);transform:rotate(30deg)}
 /* Sub-page header (left aligned with buttons) */
 .sub-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
 .sub-header h2{font-size:20px;font-weight:600;color:var(--text);text-shadow:none;letter-spacing:normal}
@@ -161,6 +163,7 @@ th{background:var(--bg-card);font-weight:600;color:var(--text-secondary);font-si
     <section id="page-home" class="page active">
       <div class="page-header">
         <h2>零陵森林公安排班表</h2>
+        <button class="settings-gear" onclick="navigate('settings')" title="设置">⚙️</button>
       </div>
       <!-- 今日值班 -->
       <div id="todayDuty" class="today-card"></div>
@@ -246,7 +249,10 @@ th{background:var(--bg-card);font-weight:600;color:var(--text-secondary);font-si
 
     <!-- ===== Page: Settings ===== -->
     <section id="page-settings" class="page">
-      <div class="sub-header"><h2>⚙️ 设置</h2></div>
+      <div class="sub-header">
+        <h2>⚙️ 设置</h2>
+        <button class="btn btn-outline btn-sm" onclick="navigate('home')">🏠 返回</button>
+      </div>
       <div class="card">
         <div class="form-group">
           <label>单位名称（默认）</label>
