@@ -175,21 +175,14 @@ tr:hover{background:#f8f9fa}
 
     <!-- ===== Page: Home ===== -->
     <section id="page-home" class="page active">
-      <div class="page-header"><h2>🌲 零零森林公安排班系统</h2></div>
-      <div class="stats-row" id="homeStats"></div>
-      <div class="card">
-        <div class="card-title">⚡ 快捷操作</div>
-        <div class="quick-grid">
-          <div class="quick-card" onclick="navigate('personnel')"><div class="icon">👥</div><div class="name">人员管理</div></div>
-          <div class="quick-card" onclick="navigate('schedule')"><div class="icon">📅</div><div class="name">生成排班</div></div>
-          <div class="quick-card" onclick="navigate('history')"><div class="icon">📚</div><div class="name">排班历史</div></div>
-          <div class="quick-card" onclick="exportMarkdownLatest()"><div class="icon">📤</div><div class="name">导出排班</div></div>
+      <div class="page-header">
+        <h2>🌲 零零森林公安排班系统</h2>
+        <div class="btn-group">
+          <button class="btn btn-outline" onclick="navigate('schedule')">📅 切换月份</button>
+          <button class="btn btn-success" onclick="exportMarkdown()">📤 导出</button>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title">📋 最近排班</div>
-        <div id="recentSchedule"></div>
-      </div>
+      <div class="schedule-wrap" id="homeScheduleTable"></div>
     </section>
 
     <!-- ===== Page: Personnel ===== -->
@@ -306,10 +299,42 @@ tr:hover{background:#f8f9fa}
 // ==================== DATA LAYER ====================
 const DB_KEY = 'forestScheduleDB';
 
+// 从知识库人员名册提取的初始数据（永州市零陵区森林公安局）
+// Sheet2（警备通登记表）手机号优先于 Sheet1
+const INITIAL_PERSONS = [
+  {id:"p01",serialNumber:1,name:"赵衡",title:"局长、一级警长",department:"局领导",phone:"19107462218",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p02",serialNumber:2,name:"李立",title:"政委、二级警长",department:"局领导",phone:"19107462212",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p03",serialNumber:3,name:"朱军",title:"副局长、二级警长",department:"局领导",phone:"17774687555",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p04",serialNumber:4,name:"陈瑞虎",title:"一级警长",department:"办公室",phone:"19107462286",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p05",serialNumber:5,name:"盛文娟",title:"一级警长",department:"办公室",phone:"19107462298",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p06",serialNumber:6,name:"唐鹏",title:"珠山森林派出所所长、一级警长",department:"珠山所",phone:"19107462290",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p07",serialNumber:7,name:"唐翔",title:"珠山森林派出所四级高级警长",department:"珠山所",phone:"19107462296",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p08",serialNumber:8,name:"朱敏",title:"珠山森林派出所二级警长",department:"珠山所",phone:"19107462209",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p09",serialNumber:9,name:"唐浩志",title:"珠山森林派出所四级警长",department:"珠山所",phone:"18874607758",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p10",serialNumber:10,name:"艾俊彦",title:"珠山森林派出所一级警员",department:"珠山所",phone:"13874775770",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p11",serialNumber:11,name:"伍俊球",title:"邮亭圩森林派出所所长、一级警长",department:"邮亭圩所",phone:"19107462268",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p12",serialNumber:12,name:"郑春波",title:"邮亭圩森林派出所教导员、一级警长",department:"邮亭圩所",phone:"19107462235",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p13",serialNumber:13,name:"吕保星",title:"邮亭圩森林派出所四级警长",department:"邮亭圩所",phone:"15399859348",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p14",serialNumber:14,name:"陈曦",title:"邮亭圩森林派出所一级警员",department:"邮亭圩所",phone:"15874613849",createdAt:"2026-06-18T15:00:00.000Z"},
+  {id:"p15",serialNumber:15,name:"周涛",title:"邮亭圩森林派出所试用期公务员",department:"邮亭圩所",phone:"17774666914",createdAt:"2026-06-18T15:00:00.000Z"}
+];
+
+// 默认排除人员：局长（赵衡）和已调离（彭海波）
+const DEFAULT_EXCLUDE_NAMES = ['赵衡'];
+
 function getDB() {
   try {
-    return JSON.parse(localStorage.getItem(DB_KEY)) || { persons: [], schedules: [], settings: { unitName: '森林公安' } };
-  } catch(e) { return { persons: [], schedules: [], settings: { unitName: '森林公安' } }; }
+    let db = JSON.parse(localStorage.getItem(DB_KEY));
+    if (!db) {
+      db = { persons: [], schedules: [], settings: { unitName: '零零森林公安' } };
+    }
+    // 首次运行自动导入初始人员数据
+    if (db.persons.length === 0) {
+      db.persons = INITIAL_PERSONS;
+      saveDB(db);
+    }
+    return db;
+  } catch(e) { return { persons: INITIAL_PERSONS, schedules: [], settings: { unitName: '零零森林公安' } }; }
 }
 
 function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
@@ -342,26 +367,111 @@ document.querySelectorAll('.nav-item, .bottom-item').forEach(item => {
 // ==================== HOME ====================
 function renderHome() {
   const db = getDB();
-  const pCount = db.persons.length;
-  const sCount = db.schedules.length;
-  const lastSched = db.schedules.length > 0 ? db.schedules[db.schedules.length - 1] : null;
-
-  document.getElementById('homeStats').innerHTML = `
-    <div class="stat-card"><div class="num">${pCount}</div><div class="label">👥 人员总数</div></div>
-    <div class="stat-card"><div class="num">${sCount}</div><div class="label">📅 排班记录</div></div>
-    <div class="stat-card"><div class="num">${db.settings.unitName || '森林公安'}</div><div class="label">🏢 单位名称</div></div>
-  `;
-
-  const recentEl = document.getElementById('recentSchedule');
-  if (lastSched) {
-    recentEl.innerHTML = `<div class="history-item" onclick="viewHistory('${lastSched.id}')">
-      <div class="info"><div class="title">${lastSched.title}</div>
-      <div class="meta">📅 ${lastSched.year}年${lastSched.month}月 · 👥 ${lastSched.personnelList.length}人参与 · 生成于 ${new Date(lastSched.createdAt).toLocaleDateString()}</div></div>
-      <span class="tag tag-blue">最新</span>
-    </div>`;
-  } else {
-    recentEl.innerHTML = '<div class="empty-state"><p>暂无排班记录，去"排班生成"试试吧</p></div>';
+  // 获取当前月份
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  
+  // 自动生成当前月排班（排除赵衡）
+  const sched = autoGenerateSchedule(db.persons, year, month, ['赵衡']);
+  
+  if (!sched) {
+    document.getElementById('homeScheduleTable').innerHTML = '<div class="empty-state"><p>⚠️ 人员不足，无法生成排班表</p></div>';
+    return;
   }
+  
+  // 渲染排班表
+  const title = `${db.settings.unitName || '零零森林公安'}${month}月排班表`;
+  let html = `<div style="text-align:center;margin-bottom:12px"><strong style="font-size:18px">${title}</strong>
+    <span style="font-size:12px;color:var(--text-secondary);margin-left:8px">（自动排除局长，${sched.availableCount}人轮值）</span></div>`;
+  html += '<table><thead><tr><th style="min-width:60px">周次</th>';
+  const weekDays = ['周一','周二','周三','周四','周五','周六','周日'];
+  weekDays.forEach(wd => { html += `<th>${wd}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  sched.weeks.forEach(week => {
+    html += `<tr><td class="week-label">第${week.weekNumber}周</td>`;
+    week.days.forEach(d => {
+      if (!d.persons || d.persons.length === 0) {
+        html += `<td class="empty">-</td>`;
+      } else {
+        const dayOfWeek = new Date(d.date).getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const dateObj = new Date(d.date + 'T00:00:00');
+        const m = dateObj.getMonth() + 1;
+        const dayNum = dateObj.getDate();
+        html += `<td class="day-cell ${isWeekend ? 'weekend' : ''}">
+          <div class="date-text">${m}月${dayNum}日</div>
+          <div class="name-text">${d.persons[0].name}</div>
+          <div class="phone-text">${d.persons[0].phone || ''}</div>
+          <div class="name-text">${d.persons[1].name}</div>
+          <div class="phone-text">${d.persons[1].phone || ''}</div>
+        </td>`;
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  
+  document.getElementById('homeScheduleTable').innerHTML = html;
+  
+  // 保存到当前排班以便导出
+  window._currentSchedule = {
+    year, month, unit: db.settings.unitName || '零零森林公安',
+    title: title,
+    excludedNames: ['赵衡'],
+    personnelList: sched.available,
+    weeks: sched.weeks
+  };
+}
+
+// 自动排班生成核心函数
+function autoGenerateSchedule(persons, year, month, excludeNames) {
+  let available = persons.filter(p => !excludeNames.includes(p.name));
+  available.sort((a, b) => (a.serialNumber || 999) - (b.serialNumber || 999));
+  if (available.length < 2) return null;
+
+  const totalDays = new Date(year, month, 0).getDate();
+  const N = available.length;
+  const days = [];
+  for (let d = 1; d <= totalDays; d++) {
+    const t = d - 1;
+    days.push({
+      date: `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`,
+      persons: [available[(t * 1) % N], available[(t * 1 + 1) % N]]
+    });
+  }
+
+  // 组织自然周
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const dayMap = {};
+  days.forEach(d => { dayMap[d.date] = d.persons; });
+
+  const weeks = [];
+  const cursor = new Date(firstDay);
+  while (cursor.getDay() !== 1) cursor.setDate(cursor.getDate() - 1);
+
+  let weekNum = 0;
+  while (cursor <= lastDay || weekNum === 0) {
+    const week = { weekNumber: ++weekNum, days: [] };
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(cursor);
+      d.setDate(cursor.getDate() + i);
+      const key = d.toISOString().split('T')[0];
+      const inMonth = d.getFullYear() === year && d.getMonth() === month - 1;
+      week.days.push({
+        date: key,
+        persons: inMonth && dayMap[key] ? dayMap[key] : []
+      });
+    }
+    weeks.push(week);
+    cursor.setDate(cursor.getDate() + 7);
+    if (cursor > lastDay) break;
+    if (weeks.length > 6) break;
+  }
+
+  return { weeks, available, availableCount: available.length };
 }
 
 // ==================== PERSONNEL ====================
@@ -579,7 +689,7 @@ function renderExcludeList() {
   db.persons.sort((a,b) => (a.serialNumber||999) - (b.serialNumber||999));
   container.innerHTML = db.persons.map(p => `
     <label class="checkbox-item">
-      <input type="checkbox" value="${p.id}">
+      <input type="checkbox" value="${p.id}" ${DEFAULT_EXCLUDE_NAMES.includes(p.name) ? 'checked' : ''}>
       <span>${p.name} ${p.title ? '('+p.title+')' : ''}</span>
     </label>
   `).join('');
@@ -865,6 +975,11 @@ function exportMarkdown() {
 }
 
 function exportMarkdownLatest() {
+  // 优先使用首页当前显示的排班
+  if (window._currentSchedule && window._currentSchedule.weeks) {
+    exportMarkdown();
+    return;
+  }
   const db = getDB();
   if (db.schedules.length === 0) { showToast('暂无排班记录可导出', 'error'); return; }
   const latest = db.schedules[db.schedules.length - 1];
@@ -875,14 +990,14 @@ function exportMarkdownLatest() {
 // ==================== SETTINGS ====================
 function saveSettings() {
   const db = getDB();
-  db.settings.unitName = document.getElementById('settingsUnit').value.trim() || '森林公安';
+  db.settings.unitName = document.getElementById('settingsUnit').value.trim() || '零零森林公安';
   saveDB(db);
   showToast('⚙️ 设置已保存', 'info');
 }
 
 function loadSettings() {
   const db = getDB();
-  document.getElementById('settingsUnit').value = db.settings.unitName || '森林公安';
+  document.getElementById('settingsUnit').value = db.settings.unitName || '零零森林公安';
 }
 
 function exportData() {
@@ -915,7 +1030,7 @@ function importData(event) {
 function resetAllData() {
   if (!confirm('⚠️ 确定要重置所有数据吗？此操作不可撤销！\n\n将清除所有人员信息和排班记录。')) return;
   if (!confirm('二次确认：真的要全部清空吗？')) return;
-  saveDB({ persons: [], schedules: [], settings: { unitName: '森林公安' } });
+  saveDB({ persons: [], schedules: [], settings: { unitName: '零零森林公安' } });
   renderPersonnel(); renderHistory(); renderHome(); loadSettings();
   document.getElementById('scheduleResult').style.display = 'none';
   showToast('✅ 已重置所有数据');
