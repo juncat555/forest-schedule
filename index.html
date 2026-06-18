@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>零零森林公安排班系统</title>
+<title>零陵森林公安排班表</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 :root{--primary:#1a73e8;--primary-dark:#1557b0;--primary-light:#e8f0fe;--danger:#ea4335;--success:#34a853;--warning:#fbbc04;--bg:#f5f7fa;--card:#fff;--text:#202124;--text-secondary:#5f6368;--border:#dadce0;--shadow:0 1px 3px rgba(0,0,0,0.12),0 1px 2px rgba(0,0,0,0.08);--shadow-lg:0 4px 12px rgba(0,0,0,0.15);--radius:8px;--sidebar-w:220px}
@@ -124,6 +124,19 @@ tr:hover{background:#f8f9fa}
   .schedule-title-bar .sub-title{font-size:12px;color:var(--text-secondary);margin-top:2px}
 }
 
+/* Today Duty Card */
+.today-card{background:linear-gradient(135deg,#1a73e8,#4a90d9);border-radius:12px;padding:14px 18px;margin-bottom:14px;color:#fff;box-shadow:0 3px 10px rgba(26,115,232,0.3);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.today-card .today-date{font-size:13px;opacity:0.9}
+.today-card .today-date strong{font-size:15px;opacity:1}
+.today-card .today-people{text-align:right}
+.today-card .today-people .label{font-size:11px;opacity:0.8}
+.today-card .today-people .names{font-size:18px;font-weight:700}
+.today-card .today-people .phones{font-size:12px;opacity:0.85}
+@media(max-width:820px){
+  .today-card{flex-direction:column;text-align:center;padding:12px 14px}
+  .today-card .today-people{text-align:center}
+}
+
 /* Toast */
 .toast{position:fixed;top:20px;right:20px;z-index:2000;padding:12px 20px;border-radius:8px;color:#fff;font-size:14px;box-shadow:var(--shadow-lg);transform:translateX(120%);transition:transform 0.3s;max-width:350px}
 .toast.show{transform:translateX(0)}
@@ -191,8 +204,8 @@ tr:hover{background:#f8f9fa}
   <!-- Sidebar -->
   <nav id="sidebar">
     <div class="sidebar-header">
-      <h1>🌲 零零排班</h1>
-      <small>排班管理系统</small>
+      <h1>🌲 零陵排班</h1>
+      <small>零陵森林公安</small>
     </div>
     <div class="sidebar-nav">
       <button class="nav-item active" data-page="home"><span class="nav-icon">🏠</span><span>首页</span></button>
@@ -218,12 +231,14 @@ tr:hover{background:#f8f9fa}
     <!-- ===== Page: Home ===== -->
     <section id="page-home" class="page active">
       <div class="page-header">
-        <h2>🌲 零零森林公安排班系统</h2>
+        <h2>📋 零陵森林公安排班表</h2>
         <div class="btn-group">
           <button class="btn btn-outline" onclick="navigate('schedule')">📅 切换月份</button>
           <button class="btn btn-success" onclick="exportMarkdown()">📤 导出</button>
         </div>
       </div>
+      <!-- 今日值班 -->
+      <div id="todayDuty" class="today-card"></div>
       <div class="schedule-wrap" id="homeScheduleTable"></div>
     </section>
 
@@ -368,7 +383,7 @@ function getDB() {
   try {
     let db = JSON.parse(localStorage.getItem(DB_KEY));
     if (!db) {
-      db = { persons: [], schedules: [], settings: { unitName: '零零森林公安' } };
+      db = { persons: [], schedules: [], settings: { unitName: '零陵森林公安' } };
     }
     // 首次运行自动导入初始人员数据
     if (db.persons.length === 0) {
@@ -376,7 +391,7 @@ function getDB() {
       saveDB(db);
     }
     return db;
-  } catch(e) { return { persons: INITIAL_PERSONS, schedules: [], settings: { unitName: '零零森林公安' } }; }
+  } catch(e) { return { persons: INITIAL_PERSONS, schedules: [], settings: { unitName: '零陵森林公安' } }; }
 }
 
 function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
@@ -409,11 +424,29 @@ document.querySelectorAll('.nav-item, .bottom-item').forEach(item => {
 // ==================== HOME ====================
 function renderHome() {
   const db = getDB();
-  // 获取当前月份
+  // 获取当前日期
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
+  const day = now.getDate();
   
+  // 计算今日值班人员
+  const todayDuty = calcTodayDuty(db.persons, ['赵衡'], year, month, day);
+  const weekNames = ['日','一','二','三','四','五','六'];
+  const dateStr = `${year}年${month}月${day}日 星期${weekNames[now.getDay()]}`;
+  
+  let todayHtml = `<div class="today-date">📅 <strong>${dateStr}</strong></div>`;
+  if (todayDuty) {
+    todayHtml += `<div class="today-people">
+      <div class="label">今日值班</div>
+      <div class="names">${todayDuty[0].name} · ${todayDuty[1].name}</div>
+      <div class="phones">${todayDuty[0].phone || ''}　${todayDuty[1].phone || ''}</div>
+    </div>`;
+  } else {
+    todayHtml += `<div class="today-people"><div class="names">暂无排班数据</div></div>`;
+  }
+  document.getElementById('todayDuty').innerHTML = todayHtml;
+
   // 自动生成当前月排班（排除赵衡）
   const sched = autoGenerateSchedule(db.persons, year, month, ['赵衡']);
   
@@ -423,7 +456,7 @@ function renderHome() {
   }
   
   // 渲染排班表（双格式：桌面表格 + 手机卡片）
-  const title = `${db.settings.unitName || '零零森林公安'}${month}月排班表`;
+  const title = `${db.settings.unitName || '零陵森林公安'}${month}月排班表`;
   const weekDayNames = ['周一','周二','周三','周四','周五','周六','周日'];
   const weekDayShort = ['一','二','三','四','五','六','日'];
   
@@ -509,12 +542,26 @@ function renderHome() {
   
   // 保存到当前排班以便导出
   window._currentSchedule = {
-    year, month, unit: db.settings.unitName || '零零森林公安',
+    year, month, unit: db.settings.unitName || '零陵森林公安',
     title: title,
     excludedNames: ['赵衡'],
     personnelList: sched.available,
     weeks: sched.weeks
   };
+}
+
+// 计算指定日期的值班人员
+function calcTodayDuty(persons, excludeNames, year, month, day) {
+  let available = persons.filter(p => !excludeNames.includes(p.name));
+  available.sort((a, b) => (a.serialNumber || 999) - (b.serialNumber || 999));
+  if (available.length < 2) return null;
+  const N = available.length;
+  // 计算当月第几天（从1开始）
+  const firstDay = new Date(year, month - 1, 1);
+  const t = day - 1;
+  const idx1 = (t * 1) % N;
+  const idx2 = (t * 1 + 1) % N;
+  return [available[idx1], available[idx2]];
 }
 
 // 自动排班生成核心函数
@@ -1158,14 +1205,14 @@ function exportMarkdownLatest() {
 // ==================== SETTINGS ====================
 function saveSettings() {
   const db = getDB();
-  db.settings.unitName = document.getElementById('settingsUnit').value.trim() || '零零森林公安';
+  db.settings.unitName = document.getElementById('settingsUnit').value.trim() || '零陵森林公安';
   saveDB(db);
   showToast('⚙️ 设置已保存', 'info');
 }
 
 function loadSettings() {
   const db = getDB();
-  document.getElementById('settingsUnit').value = db.settings.unitName || '零零森林公安';
+  document.getElementById('settingsUnit').value = db.settings.unitName || '零陵森林公安';
 }
 
 function exportData() {
@@ -1198,7 +1245,7 @@ function importData(event) {
 function resetAllData() {
   if (!confirm('⚠️ 确定要重置所有数据吗？此操作不可撤销！\n\n将清除所有人员信息和排班记录。')) return;
   if (!confirm('二次确认：真的要全部清空吗？')) return;
-  saveDB({ persons: [], schedules: [], settings: { unitName: '零零森林公安' } });
+  saveDB({ persons: [], schedules: [], settings: { unitName: '零陵森林公安' } });
   renderPersonnel(); renderHistory(); renderHome(); loadSettings();
   document.getElementById('scheduleResult').style.display = 'none';
   showToast('✅ 已重置所有数据');
